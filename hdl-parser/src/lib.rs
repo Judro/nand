@@ -3,7 +3,7 @@ use nom::{
     character::complete::{char, digit1, multispace0},
     combinator::not,
     multi::separated_list0,
-    sequence::{delimited, preceded},
+    sequence::{delimited, preceded, tuple},
     IResult,
 };
 
@@ -25,10 +25,10 @@ pub fn chip_head(input: &str) -> IResult<&str, &str> {
     preceded(delimited(skip_white, tag("CHIP"), skip_white), identifier)(input)
 }
 
-pub fn chip_body(input: &str) -> IResult<&str, ()> {
+pub fn chip_body(input: &str) -> IResult<&str, (Vec<&str>, Vec<&str>)> {
     delimited(
         preceded(skip_white, char('{')),
-        do_nothing,
+        tuple((pin_decl::<In>, pin_decl::<Out>)),
         preceded(skip_white, char('}')),
     )(input)
 }
@@ -68,10 +68,6 @@ impl Pin for Out {
     fn conn() -> &'static str {
         "OUT"
     }
-}
-
-fn do_nothing(input: &str) -> IResult<&str, ()> {
-    Ok((input, ()))
 }
 
 #[cfg(test)]
@@ -118,7 +114,7 @@ mod tests {
 
     #[test]
     fn body_0() {
-        let (rem, _res) = chip_body(" { } ").unwrap();
+        let (rem, _res) = chip_body(" {\tIN;\nOUT; } ").unwrap();
         assert_eq!(rem, " ");
     }
 
