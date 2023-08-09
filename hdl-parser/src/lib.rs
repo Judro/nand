@@ -44,11 +44,30 @@ fn pin_list(input: &str) -> IResult<&str, Vec<&str>> {
     )(input)
 }
 
-fn pin_decl<'s>(input: &'s str, dest: &'static str) -> IResult<&'s str, Vec<&'s str>> {
+fn pin_decl<'s, P: Pin>(input: &'s str) -> IResult<&'s str, Vec<&'s str>> {
     preceded(
         skip_white,
-        delimited(tag(dest), pin_list, preceded(skip_white, char(';'))),
+        delimited(tag(P::conn()), pin_list, preceded(skip_white, char(';'))),
     )(input)
+}
+
+struct In;
+struct Out;
+
+trait Pin {
+    fn conn() -> &'static str;
+}
+
+impl Pin for In {
+    fn conn() -> &'static str {
+        "IN"
+    }
+}
+
+impl Pin for Out {
+    fn conn() -> &'static str {
+        "OUT"
+    }
 }
 
 fn do_nothing(input: &str) -> IResult<&str, ()> {
@@ -125,7 +144,7 @@ mod tests {
 
     #[test]
     fn input_pin_0() {
-        let (rem, res) = pin_decl("IN a, b , c,d; ", "IN").unwrap();
+        let (rem, res) = pin_decl::<In>("IN a, b , c,d; ").unwrap();
         assert_eq!(rem, " ");
         assert_eq!(res, vec!["a", "b", "c", "d"]);
     }
@@ -133,18 +152,18 @@ mod tests {
     #[test]
     #[should_panic]
     fn input_pin_1() {
-        let (_rem, _res) = pin_decl("IN a, b , c,d", "IN").unwrap();
+        let (_rem, _res) = pin_decl::<In>("IN a, b , c,d").unwrap();
     }
 
     #[test]
     #[should_panic]
     fn input_pin_2() {
-        let (_rem, _res) = pin_decl("OUT a, b , c,d", "IN").unwrap();
+        let (_rem, _res) = pin_decl::<In>("OUT a, b , c,d").unwrap();
     }
 
     #[test]
     fn output_pin_0() {
-        let (rem, res) = pin_decl("OUT a, b , c,d; ", "OUT").unwrap();
+        let (rem, res) = pin_decl::<Out>("OUT a, b , c,d; ").unwrap();
         assert_eq!(rem, " ");
         assert_eq!(res, vec!["a", "b", "c", "d"]);
     }
