@@ -1,7 +1,8 @@
 use nom::{
+    branch::alt,
     bytes::complete::{tag, take_while1},
     character::complete::{char, digit1, multispace0},
-    combinator::not,
+    combinator::{map, not},
     multi::separated_list0,
     sequence::{delimited, preceded, tuple},
     IResult,
@@ -9,6 +10,12 @@ use nom::{
 
 pub struct Chip<'s> {
     pub name: &'s str,
+}
+
+#[derive(Debug, PartialEq)]
+pub enum RhsConnector<'s> {
+    Pin(&'s str),
+    Potential(bool),
 }
 
 pub fn chip<'s>(_input: &'s str) -> IResult<&'s str, Chip<'s>> {
@@ -49,6 +56,17 @@ fn pin_decl<'s, P: Pin>(input: &'s str) -> IResult<&'s str, Vec<&'s str>> {
         skip_white,
         delimited(tag(P::conn()), pin_list, preceded(skip_white, char(';'))),
     )(input)
+}
+
+fn bool(input: &str) -> IResult<&str, bool> {
+    alt((map(tag("true"), |_| true), map(tag("false"), |_| false)))(input)
+}
+
+fn rhs_connector<'s>(input: &'s str) -> IResult<&'s str, RhsConnector<'s>> {
+    alt((
+        map(bool, |b| RhsConnector::Potential(b)),
+        map(identifier, |i| RhsConnector::Pin(i)),
+    ))(input)
 }
 
 struct In;
@@ -162,5 +180,26 @@ mod tests {
         let (rem, res) = pin_decl::<Out>("OUT a, b , c,d; ").unwrap();
         assert_eq!(rem, " ");
         assert_eq!(res, vec!["a", "b", "c", "d"]);
+    }
+
+    #[test]
+    fn rhs_connector_0() {
+        let (rem, res) = rhs_connector("true ").unwrap();
+        assert_eq!(rem, " ");
+        assert_eq!(res, RhsConnector::Potential(true));
+    }
+
+    #[test]
+    fn rhs_connector_1() {
+        let (rem, res) = rhs_connector("false ").unwrap();
+        assert_eq!(rem, " ");
+        assert_eq!(res, RhsConnector::Potential(false));
+    }
+
+    #[test]
+    fn rhs_connector_2() {
+        let (rem, res) = rhs_connector("ab ").unwrap();
+        assert_eq!(rem, " ");
+        assert_eq!(res, RhsConnector::Pin("ab"));
     }
 }
