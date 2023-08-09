@@ -1,6 +1,6 @@
 use nom::{
     bytes::complete::{tag, take_while1},
-    character::complete::{digit1, multispace0},
+    character::complete::{char, digit1, multispace0},
     combinator::not,
     sequence::{delimited, preceded},
     IResult,
@@ -24,8 +24,20 @@ pub fn chip_head(input: &str) -> IResult<&str, &str> {
     preceded(delimited(skip_white, tag("CHIP"), skip_white), identifier)(input)
 }
 
+pub fn chip_body(input: &str) -> IResult<&str, ()> {
+    delimited(
+        preceded(skip_white, char('{')),
+        do_nothing,
+        preceded(skip_white, char('}')),
+    )(input)
+}
+
 fn skip_white(input: &str) -> IResult<&str, &str> {
     multispace0(input)
+}
+
+fn do_nothing(input: &str) -> IResult<&str, ()> {
+    Ok((input, ()))
 }
 
 #[cfg(test)]
@@ -68,5 +80,11 @@ mod tests {
         let (rem, res) = chip_head("CHIPALU_01!").unwrap();
         assert_eq!(rem, "!");
         assert_eq!(res, "ALU_01");
+    }
+
+    #[test]
+    fn body_0() {
+        let (rem, _res) = chip_body(" { } ").unwrap();
+        assert_eq!(rem, " ");
     }
 }
