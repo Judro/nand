@@ -2,6 +2,7 @@ use nom::{
     bytes::complete::{tag, take_while1},
     character::complete::{char, digit1, multispace0},
     combinator::not,
+    multi::separated_list0,
     sequence::{delimited, preceded},
     IResult,
 };
@@ -34,6 +35,13 @@ pub fn chip_body(input: &str) -> IResult<&str, ()> {
 
 fn skip_white(input: &str) -> IResult<&str, &str> {
     multispace0(input)
+}
+
+fn pin_list(input: &str) -> IResult<&str, Vec<&str>> {
+    separated_list0(
+        preceded(skip_white, char(',')),
+        preceded(skip_white, identifier),
+    )(input)
 }
 
 fn do_nothing(input: &str) -> IResult<&str, ()> {
@@ -86,5 +94,25 @@ mod tests {
     fn body_0() {
         let (rem, _res) = chip_body(" { } ").unwrap();
         assert_eq!(rem, " ");
+    }
+
+    #[test]
+    #[should_panic]
+    fn body_1() {
+        let (_rem, _res) = chip_body(" {  ").unwrap();
+    }
+
+    #[test]
+    fn pin_list_0() {
+        let (rem, res) = pin_list("a, b , c,d;").unwrap();
+        assert_eq!(rem, ";");
+        assert_eq!(res, vec!["a", "b", "c", "d"]);
+    }
+
+    #[test]
+    fn pin_list_1() {
+        let (rem, res) = pin_list("a, b  c,d;").unwrap();
+        assert_eq!(res, vec!["a", "b"]);
+        assert_eq!(rem, "  c,d;");
     }
 }
