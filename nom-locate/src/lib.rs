@@ -1,3 +1,13 @@
+pub struct Span<'s>(&'s str,&'s str);
+
+impl<'s> Span<'s>{
+    pub fn new(src:&'s str) -> Self{
+        Self(src,src)
+    }
+}
+
+
+
 pub fn add(left: usize, right: usize) -> usize {
     left + right
 }

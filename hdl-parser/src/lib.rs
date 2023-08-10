@@ -7,6 +7,7 @@ use nom::{
     sequence::{delimited, preceded, tuple},
     IResult,
 };
+use nom_locate::Span;
 
 pub struct Chip<'s> {
     pub name: &'s str,
@@ -41,6 +42,10 @@ pub fn chip_body(input: &str) -> IResult<&str, (Vec<&str>, Vec<&str>)> {
 }
 
 fn skip_white(input: &str) -> IResult<&str, &str> {
+    multispace0(input)
+}
+
+fn skip_white2(input: Span) -> IResult<Span, &str> {
     multispace0(input)
 }
 
