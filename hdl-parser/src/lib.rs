@@ -7,9 +7,14 @@ use nom::{
     sequence::{delimited, preceded, tuple},
     IResult,
 };
+use nom_locate::{locate, Located};
+
+pub type ChipName<'s> = Located<&'s str, &'s str>;
+
+pub type PinName<'s> = Located<&'s str, &'s str>;
 
 pub struct Chip<'s> {
-    pub name: &'s str,
+    pub name: ChipName<'s>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -28,11 +33,14 @@ fn identifier(input: &str) -> IResult<&str, &str> {
         take_while1(|c: char| c.is_alphanumeric() || c == '_'),
     )(input)
 }
-pub fn chip_head(input: &str) -> IResult<&str, &str> {
-    preceded(delimited(skip_white, tag("CHIP"), skip_white), identifier)(input)
+pub fn chip_head(input: &str) -> IResult<&str, ChipName> {
+    preceded(
+        delimited(skip_white, tag("CHIP"), skip_white),
+        locate(identifier),
+    )(input)
 }
 
-pub fn chip_body(input: &str) -> IResult<&str, (Vec<&str>, Vec<&str>)> {
+pub fn chip_body(input: &str) -> IResult<&str, (Vec<PinName>, Vec<PinName>)> {
     delimited(
         preceded(skip_white, char('{')),
         tuple((pin_decl::<In>, pin_decl::<Out>)),
@@ -44,14 +52,14 @@ fn skip_white(input: &str) -> IResult<&str, &str> {
     multispace0(input)
 }
 
-fn pin_list(input: &str) -> IResult<&str, Vec<&str>> {
+fn pin_list(input: &str) -> IResult<&str, Vec<PinName>> {
     separated_list0(
         preceded(skip_white, char(',')),
-        preceded(skip_white, identifier),
+        preceded(skip_white, locate(identifier)),
     )(input)
 }
 
-fn pin_decl<'s, P: Pin>(input: &'s str) -> IResult<&'s str, Vec<&'s str>> {
+fn pin_decl<'s, P: Pin>(input: &'s str) -> IResult<&'s str, Vec<PinName>> {
     preceded(
         skip_white,
         delimited(tag(P::conn()), pin_list, preceded(skip_white, char(';'))),
@@ -64,8 +72,8 @@ fn bool(input: &str) -> IResult<&str, bool> {
 
 fn rhs_connector<'s>(input: &'s str) -> IResult<&'s str, RhsConnector<'s>> {
     alt((
-        map(bool, |b| RhsConnector::Potential(b)),
-        map(identifier, |i| RhsConnector::Pin(i)),
+        map(bool, RhsConnector::Potential),
+        map(identifier, RhsConnector::Pin),
     ))(input)
 }
 
@@ -115,7 +123,7 @@ mod tests {
     fn chip_head_0() {
         let (rem, res) = chip_head("\tCHIP ALU_01!").unwrap();
         assert_eq!(rem, "!");
-        assert_eq!(res, "ALU_01");
+        assert_eq!(*res, "ALU_01");
     }
     #[test]
     #[should_panic]
@@ -127,7 +135,7 @@ mod tests {
     fn chip_head_2() {
         let (rem, res) = chip_head("CHIPALU_01!").unwrap();
         assert_eq!(rem, "!");
-        assert_eq!(res, "ALU_01");
+        assert_eq!(*res, "ALU_01");
     }
 
     #[test]
@@ -146,13 +154,17 @@ mod tests {
     fn pin_list_0() {
         let (rem, res) = pin_list("a, b , c,d;").unwrap();
         assert_eq!(rem, ";");
-        assert_eq!(res, vec!["a", "b", "c", "d"]);
+        assert_eq!(*res[0], "a");
+        assert_eq!(*res[1], "b");
+        assert_eq!(*res[2], "c");
+        assert_eq!(*res[3], "d");
     }
 
     #[test]
     fn pin_list_1() {
         let (rem, res) = pin_list("a, b  c,d;").unwrap();
-        assert_eq!(res, vec!["a", "b"]);
+        assert_eq!(*res[0], "a");
+        assert_eq!(*res[1], "b");
         assert_eq!(rem, "  c,d;");
     }
 
@@ -160,7 +172,10 @@ mod tests {
     fn input_pin_0() {
         let (rem, res) = pin_decl::<In>("IN a, b , c,d; ").unwrap();
         assert_eq!(rem, " ");
-        assert_eq!(res, vec!["a", "b", "c", "d"]);
+        assert_eq!(*res[0], "a");
+        assert_eq!(*res[1], "b");
+        assert_eq!(*res[2], "c");
+        assert_eq!(*res[3], "d");
     }
 
     #[test]
@@ -179,7 +194,10 @@ mod tests {
     fn output_pin_0() {
         let (rem, res) = pin_decl::<Out>("OUT a, b , c,d; ").unwrap();
         assert_eq!(rem, " ");
-        assert_eq!(res, vec!["a", "b", "c", "d"]);
+        assert_eq!(*res[0], "a");
+        assert_eq!(*res[1], "b");
+        assert_eq!(*res[2], "c");
+        assert_eq!(*res[3], "d");
     }
 
     #[test]
