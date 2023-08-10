@@ -46,7 +46,8 @@ fn skip_white(input: &str) -> IResult<&str, &str> {
 }
 
 fn skip_white2(input: Span) -> IResult<Span, &str> {
-    multispace0(input)
+    //multispace0(input)
+    todo!()
 }
 
 fn pin_list(input: &str) -> IResult<&str, Vec<&str>> {
