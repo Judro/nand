@@ -1,4 +1,7 @@
-use std::ops::{Deref, DerefMut};
+use std::{
+    fmt::{self, Debug},
+    ops::{Deref, DerefMut},
+};
 
 use nom::{error::ParseError, IResult, InputLength, Offset, Parser};
 
@@ -63,6 +66,15 @@ where
 {
     fn eq(&self, other: &T) -> bool {
         self.0.eq(other)
+    }
+}
+
+impl<T, I: Offset> fmt::Debug for Located<T, I>
+where
+    T: Debug,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Located").field("value", &self.0).finish()
     }
 }
 
