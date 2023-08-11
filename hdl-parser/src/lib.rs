@@ -135,7 +135,7 @@ mod tests {
     fn chip_head_0() {
         let (rem, res) = chip_head("\tCHIP ALU_01!").unwrap();
         assert_eq!(rem, "!");
-        assert_eq!(*res, "ALU_01");
+        assert_eq!(res, "ALU_01");
     }
     #[test]
     #[should_panic]
@@ -147,7 +147,7 @@ mod tests {
     fn chip_head_2() {
         let (rem, res) = chip_head("CHIPALU_01!").unwrap();
         assert_eq!(rem, "!");
-        assert_eq!(*res, "ALU_01");
+        assert_eq!(res, "ALU_01");
     }
 
     #[test]
@@ -166,17 +166,13 @@ mod tests {
     fn pin_list_0() {
         let (rem, res) = pin_list("a, b , c,d;").unwrap();
         assert_eq!(rem, ";");
-        assert_eq!(*res[0], "a");
-        assert_eq!(*res[1], "b");
-        assert_eq!(*res[2], "c");
-        assert_eq!(*res[3], "d");
+        assert_eq!(res, vec!["a", "b", "c", "d"]);
     }
 
     #[test]
     fn pin_list_1() {
         let (rem, res) = pin_list("a, b  c,d;").unwrap();
-        assert_eq!(*res[0], "a");
-        assert_eq!(*res[1], "b");
+        assert_eq!(res, vec!["a", "b"]);
         assert_eq!(rem, "  c,d;");
     }
 
@@ -184,10 +180,7 @@ mod tests {
     fn input_pin_0() {
         let (rem, res) = pin_decl::<In>("IN a, b , c,d; ").unwrap();
         assert_eq!(rem, " ");
-        assert_eq!(*res[0], "a");
-        assert_eq!(*res[1], "b");
-        assert_eq!(*res[2], "c");
-        assert_eq!(*res[3], "d");
+        assert_eq!(res, vec!["a", "b", "c", "d"]);
     }
 
     #[test]
@@ -206,10 +199,7 @@ mod tests {
     fn output_pin_0() {
         let (rem, res) = pin_decl::<Out>("OUT a, b , c,d; ").unwrap();
         assert_eq!(rem, " ");
-        assert_eq!(*res[0], "a");
-        assert_eq!(*res[1], "b");
-        assert_eq!(*res[2], "c");
-        assert_eq!(*res[3], "d");
+        assert_eq!(res, vec!["a", "b", "c", "d"]);
     }
 
     #[test]
@@ -237,7 +227,7 @@ mod tests {
     fn connection_0() {
         let (rem, (a, b)) = connection(" a = b ").unwrap();
         assert_eq!(rem, " ");
-        assert_eq!(*a, "a");
+        assert_eq!(a, "a");
         assert_eq!(b, RhsConnector::Pin("b"));
     }
     #[test]
@@ -248,7 +238,7 @@ mod tests {
 
     #[test]
     #[ignore = "todo"]
-    fn connection_list__0() {
+    fn connection_list_0() {
         let (rem, list) = connection_list(" a = b , c = true, d= in ").unwrap();
         assert_eq!(rem, " ");
         todo!()
