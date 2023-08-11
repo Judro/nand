@@ -4,7 +4,7 @@ use nom::{
     character::complete::{char, digit1, multispace0},
     combinator::{map, not},
     multi::separated_list0,
-    sequence::{delimited, preceded, tuple},
+    sequence::{delimited, preceded, separated_pair, tuple},
     IResult,
 };
 use nom_locate::{locate, Located};
@@ -75,6 +75,18 @@ fn rhs_connector<'s>(input: &'s str) -> IResult<&'s str, RhsConnector<'s>> {
         map(bool, RhsConnector::Potential),
         map(identifier, RhsConnector::Pin),
     ))(input)
+}
+
+fn connection(input: &str) -> IResult<&str, (PinName, RhsConnector)> {
+    separated_pair(
+        preceded(skip_white, locate(identifier)),
+        preceded(skip_white, char('=')),
+        preceded(skip_white, rhs_connector),
+    )(input)
+}
+
+fn connection_list(input: &str) -> IResult<&str, Vec<(PinName, RhsConnector)>> {
+    separated_list0(preceded(skip_white, char(',')), connection)(input)
 }
 
 struct In;
@@ -219,5 +231,25 @@ mod tests {
         let (rem, res) = rhs_connector("ab ").unwrap();
         assert_eq!(rem, " ");
         assert_eq!(res, RhsConnector::Pin("ab"));
+    }
+
+    #[test]
+    fn connection_0() {
+        let (rem, (a, b)) = connection(" a = b ").unwrap();
+        assert_eq!(rem, " ");
+        assert_eq!(*a, "a");
+        assert_eq!(b, RhsConnector::Pin("b"));
+    }
+    #[test]
+    #[should_panic]
+    fn connection_1() {
+        let (_rem, (_a, _b)) = connection(" a = 1 ").unwrap();
+    }
+
+    #[test]
+    fn connection_list__0() {
+        let (rem, list) = connection_list(" a = b , c = true, d= in ").unwrap();
+        assert_eq!(rem, " ");
+        todo!()
     }
 }
