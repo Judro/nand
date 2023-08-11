@@ -57,6 +57,15 @@ where
     }
 }
 
+impl<T, I: Offset> PartialEq<T> for Located<T, I>
+where
+    T: PartialEq,
+{
+    fn eq(&self, other: &T) -> bool {
+        self.0.eq(other)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
