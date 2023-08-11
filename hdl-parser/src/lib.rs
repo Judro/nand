@@ -239,8 +239,8 @@ mod tests {
     #[test]
     #[ignore = "todo"]
     fn connection_list_0() {
-        let (rem, list) = connection_list(" a = b , c = true, d= in ").unwrap();
+        let (rem, list) = connection_list(" a = b , c = false , d= in ").unwrap();
         assert_eq!(rem, " ");
-        todo!()
+        //    assert_eq!(list, vec![("a",RhsConnector::Pin("b")),("c",RhsConnector::Potential(false)), ("d",RhsConnector::Pin("in"))]);
     }
 }
