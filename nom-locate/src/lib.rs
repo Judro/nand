@@ -69,6 +69,15 @@ where
     }
 }
 
+impl<T, I: Offset + PartialEq> PartialEq<Located<T, I>> for Located<T, I>
+where
+    T: PartialEq,
+{
+    fn eq(&self, other: &Self) -> bool {
+        self.0.eq(&other.0) && self.1.eq(&other.1)
+    }
+}
+
 impl<T, I: Offset> fmt::Debug for Located<T, I>
 where
     T: Debug,
@@ -100,5 +109,13 @@ mod tests {
         let span = located.auto_span(src);
         assert_eq!(4, span.start);
         assert_eq!(8, span.end);
+    }
+
+    #[test]
+    fn patial_eq_0() {
+        assert_eq!(Located("a", "b"), Located("a", "b"));
+        assert_ne!(Located("a", "b"), Located("a", "c"));
+        assert_ne!(Located("a", "b"), Located("c", "b"));
+        assert_ne!(Located("a", "b"), Located("c", "d"));
     }
 }
