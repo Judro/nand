@@ -28,6 +28,12 @@ pub enum RhsConnector<'s> {
 pub struct PinName<'s>(&'s str);
 
 #[derive(Debug, PartialEq)]
+pub struct Connection<'s>(LPinName<'s>, LRhsConnector<'s>);
+
+#[derive(Debug, PartialEq)]
+pub struct ConnectionList<'s>(Vec<Connection<'s>>);
+
+#[derive(Debug, PartialEq)]
 pub struct ChipName<'s>(&'s str);
 
 pub fn chip<'s>(_input: &'s str) -> IResult<&'s str, Chip<'s>> {
@@ -92,16 +98,22 @@ fn rhs_connector(input: &str) -> IResult<&str, LRhsConnector> {
     )))(input)
 }
 
-fn connection(input: &str) -> IResult<&str, (LPinName, LRhsConnector)> {
-    separated_pair(
-        preceded(skip_white, locate(pin_name)),
-        preceded(skip_white, char('=')),
-        preceded(skip_white, rhs_connector),
+fn connection(input: &str) -> IResult<&str, Connection> {
+    map(
+        separated_pair(
+            preceded(skip_white, locate(pin_name)),
+            preceded(skip_white, char('=')),
+            preceded(skip_white, rhs_connector),
+        ),
+        |(l, r)| Connection(l, r),
     )(input)
 }
 
-fn connection_list(input: &str) -> IResult<&str, Vec<(LPinName, LRhsConnector)>> {
-    separated_list0(preceded(skip_white, char(',')), connection)(input)
+fn connection_list(input: &str) -> IResult<&str, ConnectionList> {
+    map(
+        separated_list0(preceded(skip_white, char(',')), connection),
+        |c| ConnectionList(c),
+    )(input)
 }
 
 struct In;
@@ -249,7 +261,7 @@ mod tests {
 
     #[test]
     fn connection_0() {
-        let (rem, (a, b)) = connection(" a = b ").unwrap();
+        let (rem, Connection(a, b)) = connection(" a = b ").unwrap();
         assert_eq!(rem, " ");
         assert_eq!(a, PinName("a"));
         assert_eq!(b, RhsConnector::Pin("b"));
@@ -257,14 +269,15 @@ mod tests {
     #[test]
     #[should_panic]
     fn connection_1() {
-        let (_rem, (_a, _b)) = connection(" a = 1 ").unwrap();
+        let (_rem, _c) = connection(" a = 1 ").unwrap();
     }
 
     #[test]
-    #[ignore = "todo"]
     fn connection_list_0() {
-        let (rem, list) = connection_list(" a = b , c = false , d= in ").unwrap();
+        let (rem, ConnectionList(list)) = connection_list(" a = b , c = false , d= in ").unwrap();
         assert_eq!(rem, " ");
-        //    assert_eq!(list, vec![("a",RhsConnector::Pin("b")),("c",RhsConnector::Potential(false)), ("d",RhsConnector::Pin("in"))]);
+        assert_eq!(list[0].0.get().0, "a");
+        assert_eq!(list[1].0.get().0, "c");
+        assert_eq!(list[2].0.get().0, "d");
     }
 }
