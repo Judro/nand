@@ -4,7 +4,7 @@ use nom::{
     character::complete::{char, digit1, multispace0},
     combinator::{map, not},
     multi::separated_list0,
-    sequence::{delimited, preceded, separated_pair, tuple},
+    sequence::{delimited, pair, preceded, separated_pair, tuple},
     IResult,
 };
 use nom_locate::{locate, Located};
@@ -35,6 +35,9 @@ pub struct ConnectionList<'s>(Vec<Connection<'s>>);
 
 #[derive(Debug, PartialEq)]
 pub struct ChipName<'s>(&'s str);
+
+#[derive(Debug, PartialEq)]
+pub struct Part<'s>(LChipName<'s>, ConnectionList<'s>);
 
 pub fn chip<'s>(_input: &'s str) -> IResult<&'s str, Chip<'s>> {
     todo!()
@@ -113,6 +116,20 @@ fn connection_list(input: &str) -> IResult<&str, ConnectionList> {
     map(
         separated_list0(preceded(skip_white, char(',')), connection),
         |c| ConnectionList(c),
+    )(input)
+}
+
+fn part(input: &str) -> IResult<&str, Part> {
+    map(
+        pair(
+            preceded(skip_white, locate(chip_name)),
+            delimited(
+                preceded(skip_white, char('(')),
+                connection_list,
+                preceded(skip_white, char(')')),
+            ),
+        ),
+        |p| Part(p.0, p.1),
     )(input)
 }
 
@@ -279,5 +296,13 @@ mod tests {
         assert_eq!(list[0].0.get().0, "a");
         assert_eq!(list[1].0.get().0, "c");
         assert_eq!(list[2].0.get().0, "d");
+    }
+
+    #[test]
+    fn part_0() {
+        let (rem, part) = part("And ( a = a , b = false ) ").unwrap();
+        assert_eq!(rem, " ");
+        assert_eq!(part.0, ChipName("And"));
+        assert_eq!(part.1 .0.len(), 2);
     }
 }
