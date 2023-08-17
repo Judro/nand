@@ -11,7 +11,7 @@ use nom_locate::{locate, Located};
 
 pub type ChipName<'s> = Located<&'s str, &'s str>;
 
-pub type PinName<'s> = Located<&'s str, &'s str>;
+pub type LPinName<'s> = Located<PinName<'s>, &'s str>;
 
 pub type LRhsConnector<'s> = Located<RhsConnector<'s>, &'s str>;
 
@@ -24,6 +24,9 @@ pub enum RhsConnector<'s> {
     Pin(&'s str),
     Potential(bool),
 }
+#[derive(Debug, PartialEq)]
+
+pub struct PinName<'s>(&'s str);
 
 pub fn chip<'s>(_input: &'s str) -> IResult<&'s str, Chip<'s>> {
     todo!()
@@ -42,7 +45,7 @@ pub fn chip_head(input: &str) -> IResult<&str, ChipName> {
     )(input)
 }
 
-pub fn chip_body(input: &str) -> IResult<&str, (Vec<PinName>, Vec<PinName>)> {
+pub fn chip_body(input: &str) -> IResult<&str, (Vec<LPinName>, Vec<LPinName>)> {
     delimited(
         preceded(skip_white, char('{')),
         tuple((pin_decl::<In>, pin_decl::<Out>)),
@@ -54,14 +57,18 @@ fn skip_white(input: &str) -> IResult<&str, &str> {
     multispace0(input)
 }
 
-fn pin_list(input: &str) -> IResult<&str, Vec<PinName>> {
+fn pin_list(input: &str) -> IResult<&str, Vec<LPinName>> {
     separated_list0(
         preceded(skip_white, char(',')),
-        preceded(skip_white, locate(identifier)),
+        preceded(skip_white, locate(pin_name)),
     )(input)
 }
 
-fn pin_decl<'s, P: Pin>(input: &'s str) -> IResult<&'s str, Vec<PinName>> {
+fn pin_name(input: &str) -> IResult<&str, PinName> {
+    map(identifier, |s| PinName(s))(input)
+}
+
+fn pin_decl<'s, P: Pin>(input: &'s str) -> IResult<&'s str, Vec<LPinName>> {
     preceded(
         skip_white,
         delimited(tag(P::conn()), pin_list, preceded(skip_white, char(';'))),
@@ -79,15 +86,15 @@ fn rhs_connector(input: &str) -> IResult<&str, LRhsConnector> {
     )))(input)
 }
 
-fn connection(input: &str) -> IResult<&str, (PinName, LRhsConnector)> {
+fn connection(input: &str) -> IResult<&str, (LPinName, LRhsConnector)> {
     separated_pair(
-        preceded(skip_white, locate(identifier)),
+        preceded(skip_white, locate(pin_name)),
         preceded(skip_white, char('=')),
         preceded(skip_white, rhs_connector),
     )(input)
 }
 
-fn connection_list(input: &str) -> IResult<&str, Vec<(PinName, LRhsConnector)>> {
+fn connection_list(input: &str) -> IResult<&str, Vec<(LPinName, LRhsConnector)>> {
     separated_list0(preceded(skip_white, char(',')), connection)(input)
 }
 
@@ -168,13 +175,16 @@ mod tests {
     fn pin_list_0() {
         let (rem, res) = pin_list("a, b , c,d;").unwrap();
         assert_eq!(rem, ";");
-        assert_eq!(res, vec!["a", "b", "c", "d"]);
+        assert_eq!(
+            res,
+            vec![PinName("a"), PinName("b"), PinName("c"), PinName("d")]
+        );
     }
 
     #[test]
     fn pin_list_1() {
         let (rem, res) = pin_list("a, b  c,d;").unwrap();
-        assert_eq!(res, vec!["a", "b"]);
+        assert_eq!(res, vec![PinName("a"), PinName("b")]);
         assert_eq!(rem, "  c,d;");
     }
 
@@ -182,7 +192,10 @@ mod tests {
     fn input_pin_0() {
         let (rem, res) = pin_decl::<In>("IN a, b , c,d; ").unwrap();
         assert_eq!(rem, " ");
-        assert_eq!(res, vec!["a", "b", "c", "d"]);
+        assert_eq!(
+            res,
+            vec![PinName("a"), PinName("b"), PinName("c"), PinName("d")]
+        );
     }
 
     #[test]
@@ -201,7 +214,10 @@ mod tests {
     fn output_pin_0() {
         let (rem, res) = pin_decl::<Out>("OUT a, b , c,d; ").unwrap();
         assert_eq!(rem, " ");
-        assert_eq!(res, vec!["a", "b", "c", "d"]);
+        assert_eq!(
+            res,
+            vec![PinName("a"), PinName("b"), PinName("c"), PinName("d")]
+        );
     }
 
     #[test]
@@ -229,7 +245,7 @@ mod tests {
     fn connection_0() {
         let (rem, (a, b)) = connection(" a = b ").unwrap();
         assert_eq!(rem, " ");
-        assert_eq!(a, "a");
+        assert_eq!(a, PinName("a"));
         assert_eq!(b, RhsConnector::Pin("b"));
     }
     #[test]
