@@ -9,14 +9,14 @@ use nom::{
 };
 use nom_locate::{locate, Located};
 
-pub type ChipName<'s> = Located<&'s str, &'s str>;
+pub type LChipName<'s> = Located<ChipName<'s>, &'s str>;
 
 pub type LPinName<'s> = Located<PinName<'s>, &'s str>;
 
 pub type LRhsConnector<'s> = Located<RhsConnector<'s>, &'s str>;
 
 pub struct Chip<'s> {
-    pub name: ChipName<'s>,
+    pub name: LChipName<'s>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -25,8 +25,10 @@ pub enum RhsConnector<'s> {
     Potential(bool),
 }
 #[derive(Debug, PartialEq)]
-
 pub struct PinName<'s>(&'s str);
+
+#[derive(Debug, PartialEq)]
+pub struct ChipName<'s>(&'s str);
 
 pub fn chip<'s>(_input: &'s str) -> IResult<&'s str, Chip<'s>> {
     todo!()
@@ -38,10 +40,10 @@ fn identifier(input: &str) -> IResult<&str, &str> {
         take_while1(|c: char| c.is_alphanumeric() || c == '_'),
     )(input)
 }
-pub fn chip_head(input: &str) -> IResult<&str, ChipName> {
+pub fn chip_head(input: &str) -> IResult<&str, LChipName> {
     preceded(
         delimited(skip_white, tag("CHIP"), skip_white),
-        locate(identifier),
+        locate(chip_name),
     )(input)
 }
 
@@ -66,6 +68,10 @@ fn pin_list(input: &str) -> IResult<&str, Vec<LPinName>> {
 
 fn pin_name(input: &str) -> IResult<&str, PinName> {
     map(identifier, |s| PinName(s))(input)
+}
+
+fn chip_name(input: &str) -> IResult<&str, ChipName> {
+    map(identifier, |s| ChipName(s))(input)
 }
 
 fn pin_decl<'s, P: Pin>(input: &'s str) -> IResult<&'s str, Vec<LPinName>> {
@@ -144,7 +150,7 @@ mod tests {
     fn chip_head_0() {
         let (rem, res) = chip_head("\tCHIP ALU_01!").unwrap();
         assert_eq!(rem, "!");
-        assert_eq!(res, "ALU_01");
+        assert_eq!(res, ChipName("ALU_01"));
     }
     #[test]
     #[should_panic]
@@ -156,7 +162,7 @@ mod tests {
     fn chip_head_2() {
         let (rem, res) = chip_head("CHIPALU_01!").unwrap();
         assert_eq!(rem, "!");
-        assert_eq!(res, "ALU_01");
+        assert_eq!(res, ChipName("ALU_01"));
     }
 
     #[test]
