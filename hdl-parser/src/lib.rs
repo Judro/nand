@@ -13,6 +13,8 @@ pub type ChipName<'s> = Located<&'s str, &'s str>;
 
 pub type PinName<'s> = Located<&'s str, &'s str>;
 
+pub type LRhsConnector<'s> = Located<RhsConnector<'s>, &'s str>;
+
 pub struct Chip<'s> {
     pub name: ChipName<'s>,
 }
@@ -70,14 +72,14 @@ fn bool(input: &str) -> IResult<&str, bool> {
     alt((map(tag("true"), |_| true), map(tag("false"), |_| false)))(input)
 }
 
-fn rhs_connector<'s>(input: &'s str) -> IResult<&'s str, RhsConnector<'s>> {
-    alt((
+fn rhs_connector(input: &str) -> IResult<&str, LRhsConnector> {
+    locate(alt((
         map(bool, RhsConnector::Potential),
         map(identifier, RhsConnector::Pin),
-    ))(input)
+    )))(input)
 }
 
-fn connection(input: &str) -> IResult<&str, (PinName, RhsConnector)> {
+fn connection(input: &str) -> IResult<&str, (PinName, LRhsConnector)> {
     separated_pair(
         preceded(skip_white, locate(identifier)),
         preceded(skip_white, char('=')),
@@ -85,7 +87,7 @@ fn connection(input: &str) -> IResult<&str, (PinName, RhsConnector)> {
     )(input)
 }
 
-fn connection_list(input: &str) -> IResult<&str, Vec<(PinName, RhsConnector)>> {
+fn connection_list(input: &str) -> IResult<&str, Vec<(PinName, LRhsConnector)>> {
     separated_list0(preceded(skip_white, char(',')), connection)(input)
 }
 
