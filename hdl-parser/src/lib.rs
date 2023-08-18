@@ -4,7 +4,7 @@ use nom::{
     character::complete::{char, digit1, multispace0},
     combinator::{map, not},
     multi::{many0, separated_list0},
-    sequence::{delimited, pair, preceded, separated_pair, tuple},
+    sequence::{delimited, pair, preceded, separated_pair, terminated, tuple},
     IResult,
 };
 use nom_locate::{locate, Located};
@@ -127,13 +127,16 @@ fn connection_list(input: &str) -> IResult<&str, ConnectionList> {
 
 fn part(input: &str) -> IResult<&str, Part> {
     map(
-        pair(
-            preceded(skip_white, locate(chip_name)),
-            delimited(
-                preceded(skip_white, char('(')),
-                connection_list,
-                preceded(skip_white, char(')')),
+        terminated(
+            pair(
+                preceded(skip_white, locate(chip_name)),
+                delimited(
+                    preceded(skip_white, char('(')),
+                    connection_list,
+                    preceded(skip_white, char(')')),
+                ),
             ),
+            preceded(skip_white, char(';')),
         ),
         |p| Part(p.0, p.1),
     )(input)
@@ -306,7 +309,7 @@ mod tests {
 
     #[test]
     fn part_0() {
-        let (rem, part) = part("And ( a = a , b = false ) ").unwrap();
+        let (rem, part) = part("And ( a = a , b = false ) ; ").unwrap();
         assert_eq!(rem, " ");
         assert_eq!(part.0, ChipName("And"));
         assert_eq!(part.1 .0.len(), 2);
