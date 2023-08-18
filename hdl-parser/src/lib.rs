@@ -3,7 +3,7 @@ use nom::{
     bytes::complete::{tag, take_while1},
     character::complete::{char, digit1, multispace0},
     combinator::{map, not},
-    multi::separated_list0,
+    multi::{many0, separated_list0},
     sequence::{delimited, pair, preceded, separated_pair, tuple},
     IResult,
 };
@@ -56,11 +56,17 @@ pub fn chip_head(input: &str) -> IResult<&str, LChipName> {
     )(input)
 }
 
-pub fn chip_body(input: &str) -> IResult<&str, (Vec<LPinName>, Vec<LPinName>)> {
-    delimited(
-        preceded(skip_white, char('{')),
-        tuple((pin_decl::<In>, pin_decl::<Out>)),
-        preceded(skip_white, char('}')),
+pub fn chip_body(input: &str) -> IResult<&str, (Vec<LPinName>, Vec<LPinName>, Vec<Part>)> {
+    map(
+        delimited(
+            preceded(skip_white, char('{')),
+            pair(
+                tuple((pin_decl::<In>, pin_decl::<Out>)),
+                preceded(preceded(skip_white, tag("PARTS:")), many0(part)),
+            ),
+            preceded(skip_white, char('}')),
+        ),
+        |(io, p)| (io.0, io.1, p),
     )(input)
 }
 
@@ -196,7 +202,7 @@ mod tests {
 
     #[test]
     fn body_0() {
-        let (rem, _res) = chip_body(" {\tIN;\nOUT; } ").unwrap();
+        let (rem, _res) = chip_body(" {\tIN;\nOUT; PARTS: } ").unwrap();
         assert_eq!(rem, " ");
     }
 
