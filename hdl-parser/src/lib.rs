@@ -2,7 +2,7 @@ use nom::{
     branch::alt,
     bytes::complete::{tag, take_while1},
     character::complete::{char, digit1, multispace0},
-    combinator::{map, not},
+    combinator::{map, map_res, not},
     multi::{many0, separated_list0},
     sequence::{delimited, pair, preceded, separated_pair, terminated, tuple},
     IResult,
@@ -15,6 +15,8 @@ pub type LPinName<'s> = Located<PinName<'s>, &'s str>;
 
 pub type LRhsConnector<'s> = Located<RhsConnector<'s>, &'s str>;
 
+pub type LUnsigned<'s> = Located<u32, &'s str>;
+
 pub struct Chip<'s> {
     pub name: LChipName<'s>,
     pub in_decl: Vec<LPinName<'s>>,
@@ -23,8 +25,15 @@ pub struct Chip<'s> {
 }
 
 #[derive(Debug, PartialEq)]
+pub struct BusSlice<'s> {
+    name: LPinName<'s>,
+    slice: (LUnsigned<'s>, LUnsigned<'s>),
+}
+
+#[derive(Debug, PartialEq)]
 pub enum RhsConnector<'s> {
     Bus(&'s str),
+    Slice(BusSlice<'s>),
     Potential(bool),
 }
 #[derive(Debug, PartialEq)]
@@ -63,6 +72,11 @@ fn identifier(input: &str) -> IResult<&str, &str> {
         take_while1(|c: char| c.is_alphanumeric() || c == '_'),
     )(input)
 }
+
+fn unsigned(input: &str) -> IResult<&str, u32> {
+    map_res(digit1, |u: &str| u.parse::<u32>())(input)
+}
+
 pub fn chip_head(input: &str) -> IResult<&str, LChipName> {
     preceded(
         delimited(skip_white, tag("CHIP"), skip_white),
@@ -114,9 +128,31 @@ fn bool(input: &str) -> IResult<&str, bool> {
     alt((map(tag("true"), |_| true), map(tag("false"), |_| false)))(input)
 }
 
+fn bus_slice(input: &str) -> IResult<&str, BusSlice> {
+    map(
+        pair(
+            locate(pin_name),
+            delimited(
+                preceded(skip_white, char('[')),
+                alt((
+                    separated_pair(
+                        preceded(skip_white, locate(unsigned)),
+                        preceded(skip_white, tag("..")),
+                        preceded(skip_white, locate(unsigned)),
+                    ),
+                    preceded(skip_white, map(locate(unsigned), |u| (u, u))),
+                )),
+                preceded(skip_white, char(']')),
+            ),
+        ),
+        |(n, bs)| BusSlice { name: n, slice: bs },
+    )(input)
+}
+
 fn rhs_connector(input: &str) -> IResult<&str, LRhsConnector> {
     locate(alt((
         map(bool, RhsConnector::Potential),
+        map(bus_slice, RhsConnector::Slice),
         map(identifier, RhsConnector::Bus),
     )))(input)
 }
@@ -282,6 +318,24 @@ mod tests {
     }
 
     #[test]
+    fn bus_slice0() {
+        let (rem, slice) = bus_slice("a [ 22 ] ").unwrap();
+        assert_eq!(rem, " ");
+        assert_eq!(slice.name, PinName("a"));
+        assert_eq!(slice.slice.0, 22);
+        assert_eq!(slice.slice.1, 22);
+    }
+
+    #[test]
+    fn bus_slice1() {
+        let (rem, slice) = bus_slice("a[ 1 .. 3 ] ").unwrap();
+        assert_eq!(rem, " ");
+        assert_eq!(slice.name, PinName("a"));
+        assert_eq!(slice.slice.0, 1);
+        assert_eq!(slice.slice.1, 3);
+    }
+
+    #[test]
     fn rhs_connector_0() {
         let (rem, res) = rhs_connector("true ").unwrap();
         assert_eq!(rem, " ");
@@ -300,6 +354,13 @@ mod tests {
         let (rem, res) = rhs_connector("ab ").unwrap();
         assert_eq!(rem, " ");
         assert_eq!(res, RhsConnector::Bus("ab"));
+    }
+
+    #[test]
+    fn rhs_connector_3() {
+        let (rem, _res) = rhs_connector("a[10..12] ").unwrap();
+        assert_eq!(rem, " ");
+        // just check that it works
     }
 
     #[test]
