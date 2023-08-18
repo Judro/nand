@@ -15,6 +15,8 @@ pub type LPinName<'s> = Located<PinName<'s>, &'s str>;
 
 pub type LRhsConnector<'s> = Located<RhsConnector<'s>, &'s str>;
 
+pub type LLhsConnector<'s> = Located<LhsConnector<'s>, &'s str>;
+
 pub type LUnsigned<'s> = Located<u32, &'s str>;
 
 pub struct Chip<'s> {
@@ -36,12 +38,19 @@ pub enum RhsConnector<'s> {
     Slice(BusSlice<'s>),
     Potential(bool),
 }
+
+#[derive(Debug, PartialEq)]
+pub enum LhsConnector<'s> {
+    Bus(&'s str),
+    Slice(BusSlice<'s>),
+}
+
 #[derive(Debug, PartialEq)]
 pub struct PinName<'s>(&'s str);
 
 #[derive(Debug, PartialEq)]
 pub struct Connection<'s> {
-    lhs: LPinName<'s>,
+    lhs: LLhsConnector<'s>,
     rhs: LRhsConnector<'s>,
 }
 
@@ -157,10 +166,17 @@ fn rhs_connector(input: &str) -> IResult<&str, LRhsConnector> {
     )))(input)
 }
 
+fn lhs_connector(input: &str) -> IResult<&str, LLhsConnector> {
+    locate(alt((
+        map(bus_slice, LhsConnector::Slice),
+        map(identifier, LhsConnector::Bus),
+    )))(input)
+}
+
 fn connection(input: &str) -> IResult<&str, Connection> {
     map(
         separated_pair(
-            preceded(skip_white, locate(pin_name)),
+            preceded(skip_white, lhs_connector),
             preceded(skip_white, char('=')),
             preceded(skip_white, rhs_connector),
         ),
@@ -367,7 +383,7 @@ mod tests {
     fn connection_0() {
         let (rem, Connection { lhs: a, rhs: b }) = connection(" a = b ").unwrap();
         assert_eq!(rem, " ");
-        assert_eq!(a, PinName("a"));
+        assert_eq!(a, LhsConnector::Bus("a"));
         assert_eq!(b, RhsConnector::Bus("b"));
     }
     #[test]
@@ -380,9 +396,9 @@ mod tests {
     fn connection_list_0() {
         let (rem, ConnectionList(list)) = connection_list(" a = b , c = false , d= in ").unwrap();
         assert_eq!(rem, " ");
-        assert_eq!(list[0].lhs.get().0, "a");
-        assert_eq!(list[1].lhs.get().0, "c");
-        assert_eq!(list[2].lhs.get().0, "d");
+        assert_eq!(list[0].lhs.get(), &LhsConnector::Bus("a"));
+        assert_eq!(list[1].lhs.get(), &LhsConnector::Bus("c"));
+        assert_eq!(list[2].lhs.get(), &LhsConnector::Bus("d"));
     }
 
     #[test]
