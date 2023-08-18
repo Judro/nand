@@ -24,7 +24,7 @@ pub struct Chip<'s> {
 
 #[derive(Debug, PartialEq)]
 pub enum RhsConnector<'s> {
-    Pin(&'s str),
+    Bus(&'s str),
     Potential(bool),
 }
 #[derive(Debug, PartialEq)]
@@ -117,7 +117,7 @@ fn bool(input: &str) -> IResult<&str, bool> {
 fn rhs_connector(input: &str) -> IResult<&str, LRhsConnector> {
     locate(alt((
         map(bool, RhsConnector::Potential),
-        map(identifier, RhsConnector::Pin),
+        map(identifier, RhsConnector::Bus),
     )))(input)
 }
 
@@ -299,7 +299,7 @@ mod tests {
     fn rhs_connector_2() {
         let (rem, res) = rhs_connector("ab ").unwrap();
         assert_eq!(rem, " ");
-        assert_eq!(res, RhsConnector::Pin("ab"));
+        assert_eq!(res, RhsConnector::Bus("ab"));
     }
 
     #[test]
@@ -307,7 +307,7 @@ mod tests {
         let (rem, Connection { lhs: a, rhs: b }) = connection(" a = b ").unwrap();
         assert_eq!(rem, " ");
         assert_eq!(a, PinName("a"));
-        assert_eq!(b, RhsConnector::Pin("b"));
+        assert_eq!(b, RhsConnector::Bus("b"));
     }
     #[test]
     #[should_panic]
