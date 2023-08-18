@@ -46,6 +46,7 @@ impl<'s> Located<&'s str, &'s str> {
     }
 }
 
+#[derive(Copy, Clone)]
 pub struct Located<T, I: Offset>(T, I);
 
 pub fn locate<I, O, E: ParseError<I>, F>(mut f: F) -> impl FnMut(I) -> IResult<I, Located<O, I>, E>
