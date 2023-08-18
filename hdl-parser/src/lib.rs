@@ -17,6 +17,9 @@ pub type LRhsConnector<'s> = Located<RhsConnector<'s>, &'s str>;
 
 pub struct Chip<'s> {
     pub name: LChipName<'s>,
+    pub in_decl: Vec<LPinName<'s>>,
+    pub out_decl: Vec<LPinName<'s>>,
+    pub parts: Vec<Part<'s>>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -39,8 +42,13 @@ pub struct ChipName<'s>(&'s str);
 #[derive(Debug, PartialEq)]
 pub struct Part<'s>(LChipName<'s>, ConnectionList<'s>);
 
-pub fn chip<'s>(_input: &'s str) -> IResult<&'s str, Chip<'s>> {
-    todo!()
+pub fn chip<'s>(input: &'s str) -> IResult<&'s str, Chip<'s>> {
+    map(pair(chip_head, chip_body), |(h, b)| Chip {
+        name: h,
+        in_decl: b.0,
+        out_decl: b.1,
+        parts: b.2,
+    })(input)
 }
 
 fn identifier(input: &str) -> IResult<&str, &str> {
@@ -313,5 +321,16 @@ mod tests {
         assert_eq!(rem, " ");
         assert_eq!(part.0, ChipName("And"));
         assert_eq!(part.1 .0.len(), 2);
+    }
+
+    #[test]
+    fn chip_0() {
+        let (rem, chip) = chip("CHIP And { \n IN a,b; OUT out; \n PARTS: \n Nand(a=a,b=b,out=c); \n Not(in=c,out=out); } ").unwrap();
+        assert_eq!(rem, " ");
+        assert_eq!(chip.name, ChipName("And"));
+        assert_eq!(chip.in_decl, vec![PinName("a"), PinName("b")]);
+        assert_eq!(chip.out_decl, vec![PinName("out")]);
+        assert_eq!(chip.parts[0].0, ChipName("Nand"));
+        assert_eq!(chip.parts[1].0, ChipName("Not"));
     }
 }
