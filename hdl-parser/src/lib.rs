@@ -31,7 +31,10 @@ pub enum RhsConnector<'s> {
 pub struct PinName<'s>(&'s str);
 
 #[derive(Debug, PartialEq)]
-pub struct Connection<'s>(LPinName<'s>, LRhsConnector<'s>);
+pub struct Connection<'s> {
+    lhs: LPinName<'s>,
+    rhs: LRhsConnector<'s>,
+}
 
 #[derive(Debug, PartialEq)]
 pub struct ConnectionList<'s>(Vec<Connection<'s>>);
@@ -40,9 +43,12 @@ pub struct ConnectionList<'s>(Vec<Connection<'s>>);
 pub struct ChipName<'s>(&'s str);
 
 #[derive(Debug, PartialEq)]
-pub struct Part<'s>(LChipName<'s>, ConnectionList<'s>);
+pub struct Part<'s> {
+    name: LChipName<'s>,
+    connections: ConnectionList<'s>,
+}
 
-pub fn chip<'s>(input: &'s str) -> IResult<&'s str, Chip<'s>> {
+pub fn chip(input: &str) -> IResult<&str, Chip<'_>> {
     map(pair(chip_head, chip_body), |(h, b)| Chip {
         name: h,
         in_decl: b.0,
@@ -97,7 +103,7 @@ fn chip_name(input: &str) -> IResult<&str, ChipName> {
     map(identifier, |s| ChipName(s))(input)
 }
 
-fn pin_decl<'s, P: Pin>(input: &'s str) -> IResult<&'s str, Vec<LPinName>> {
+fn pin_decl<P: Pin>(input: &str) -> IResult<&str, Vec<LPinName>> {
     preceded(
         skip_white,
         delimited(tag(P::conn()), pin_list, preceded(skip_white, char(';'))),
@@ -122,7 +128,7 @@ fn connection(input: &str) -> IResult<&str, Connection> {
             preceded(skip_white, char('=')),
             preceded(skip_white, rhs_connector),
         ),
-        |(l, r)| Connection(l, r),
+        |(l, r)| Connection { lhs: l, rhs: r },
     )(input)
 }
 
@@ -146,7 +152,10 @@ fn part(input: &str) -> IResult<&str, Part> {
             ),
             preceded(skip_white, char(';')),
         ),
-        |p| Part(p.0, p.1),
+        |p| Part {
+            name: p.0,
+            connections: p.1,
+        },
     )(input)
 }
 
@@ -295,7 +304,7 @@ mod tests {
 
     #[test]
     fn connection_0() {
-        let (rem, Connection(a, b)) = connection(" a = b ").unwrap();
+        let (rem, Connection { lhs: a, rhs: b }) = connection(" a = b ").unwrap();
         assert_eq!(rem, " ");
         assert_eq!(a, PinName("a"));
         assert_eq!(b, RhsConnector::Pin("b"));
@@ -310,17 +319,17 @@ mod tests {
     fn connection_list_0() {
         let (rem, ConnectionList(list)) = connection_list(" a = b , c = false , d= in ").unwrap();
         assert_eq!(rem, " ");
-        assert_eq!(list[0].0.get().0, "a");
-        assert_eq!(list[1].0.get().0, "c");
-        assert_eq!(list[2].0.get().0, "d");
+        assert_eq!(list[0].lhs.get().0, "a");
+        assert_eq!(list[1].lhs.get().0, "c");
+        assert_eq!(list[2].lhs.get().0, "d");
     }
 
     #[test]
     fn part_0() {
         let (rem, part) = part("And ( a = a , b = false ) ; ").unwrap();
         assert_eq!(rem, " ");
-        assert_eq!(part.0, ChipName("And"));
-        assert_eq!(part.1 .0.len(), 2);
+        assert_eq!(part.name, ChipName("And"));
+        assert_eq!(part.connections.0.len(), 2);
     }
 
     #[test]
@@ -330,7 +339,7 @@ mod tests {
         assert_eq!(chip.name, ChipName("And"));
         assert_eq!(chip.in_decl, vec![PinName("a"), PinName("b")]);
         assert_eq!(chip.out_decl, vec![PinName("out")]);
-        assert_eq!(chip.parts[0].0, ChipName("Nand"));
-        assert_eq!(chip.parts[1].0, ChipName("Not"));
+        assert_eq!(chip.parts[0].name, ChipName("Nand"));
+        assert_eq!(chip.parts[1].name, ChipName("Not"));
     }
 }
