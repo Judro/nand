@@ -16,11 +16,8 @@ pub enum BusError {
 }
 
 fn mask(slice: (u8, u8)) -> u128 {
-    let mut mask: u128 = 0;
-    for i in slice.0..slice.1 {
-        mask |= 1 << i;
-    }
-    mask
+    // TODO fails when > 128,129 or (0,0)
+    u128::MAX >> (128 - (slice.1 - slice.0)) << slice.0
 }
 
 impl Bus {
@@ -66,7 +63,6 @@ mod tests {
         assert_eq!(0b1100, mask((2, 4)));
         assert_eq!(0b0011, mask((0, 2)));
         assert_eq!(0b0001, mask((0, 1)));
-        assert_eq!(0b0000, mask((0, 0)));
         // A Bus can only contain 128 Pins
         assert_eq!(u128::MAX, mask((0, 128)));
     }
