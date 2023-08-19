@@ -135,4 +135,31 @@ mod tests {
         assert_eq!(a.data, 0b10101010);
         assert_eq!(res, Ok(()));
     }
+    #[test]
+    fn load_5() {
+        let mut a = Bus {
+            data: 0b10101011,
+            size: 8,
+        };
+        let b = Bus {
+            data: 0b11011100,
+            size: 8,
+        };
+        let res = a.load(&b, (1, 130), (0, 129));
+        assert_eq!(res, Err(BusError::SourceBusMaxExceeded));
+    }
+
+    #[test]
+    fn load_6() {
+        let mut a = Bus {
+            data: 0b10101011,
+            size: 8,
+        };
+        let b = Bus {
+            data: 0b11011100,
+            size: 8,
+        };
+        let res = a.load(&b, (0, 129), (1, 130));
+        assert_eq!(res, Err(BusError::DestinationBusMaxExceeded));
+    }
 }
