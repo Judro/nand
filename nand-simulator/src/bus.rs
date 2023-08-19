@@ -29,10 +29,10 @@ impl Bus {
         source: (u8, u8),
         dest: (u8, u8),
     ) -> Result<(), BusError> {
-        if source.0 > 128 || source.1 > 128 {
+        if source.0 > 128 || source.1 > 129 {
             return Err(BusError::SourceBusMaxExceeded);
         }
-        if dest.0 > 128 || dest.1 > 128 {
+        if dest.0 > 128 || dest.1 > 129 {
             return Err(BusError::DestinationBusMaxExceeded);
         }
         let mut tmp = source_bus.data;
