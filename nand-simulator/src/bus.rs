@@ -1,7 +1,17 @@
+use thiserror::Error;
+
 /// can contain 1 to 127 pins: A[0] .. A[0..128]
 struct Bus {
     pub data: u128,
     pub size: u8,
+}
+
+#[derive(Error, Debug, PartialEq)]
+enum BusError {
+    #[error("A bus should not contain more than 127 pins!")]
+    SourceBusMaxExceeded,
+    #[error("A bus should not contain more than 127 pins!")]
+    DestinationBusMaxExceeded,
 }
 
 fn mask(slice: (u8, u8)) -> u128 {
@@ -9,7 +19,18 @@ fn mask(slice: (u8, u8)) -> u128 {
 }
 
 impl Bus {
-    pub fn load(&mut self, source_bus: &Bus, source: (u8, u8), dest: (u8, u8)) {
+    pub fn load(
+        &mut self,
+        source_bus: &Bus,
+        source: (u8, u8),
+        dest: (u8, u8),
+    ) -> Result<(), BusError> {
+        if source.0 > 127 || source.1 > 127 {
+            return Err(BusError::SourceBusMaxExceeded);
+        }
+        if dest.0 > 127 || dest.1 > 127 {
+            return Err(BusError::DestinationBusMaxExceeded);
+        }
         let mut tmp = source_bus.data;
         let shift: u8;
         if dest.0 > source.0 {
@@ -20,6 +41,7 @@ impl Bus {
             tmp = tmp >> shift & mask(dest);
         }
         self.data = self.data ^ (self.data & mask(dest)) | tmp;
+        Ok(())
     }
 }
 
@@ -47,8 +69,9 @@ mod tests {
             data: 0b11011100,
             size: 8,
         };
-        a.load(&b, (2, 7), (0, 5));
+        let res = a.load(&b, (2, 7), (0, 5));
         assert_eq!(a.data, 0b10111);
+        assert_eq!(res, Ok(()));
     }
 
     #[test]
@@ -61,8 +84,9 @@ mod tests {
             data: 0b11011100,
             size: 8,
         };
-        a.load(&b, (0, 5), (2, 7));
+        let res = a.load(&b, (0, 5), (2, 7));
         assert_eq!(a.data, 0b01110011);
+        assert_eq!(res, Ok(()));
     }
 
     #[test]
@@ -75,8 +99,9 @@ mod tests {
             data: 0b11011101,
             size: 8,
         };
-        a.load(&b, (0, 5), (0, 5));
+        let res = a.load(&b, (0, 5), (0, 5));
         assert_eq!(a.data, 0b00011101);
+        assert_eq!(res, Ok(()));
     }
     #[test]
     fn load_3() {
@@ -88,8 +113,9 @@ mod tests {
             data: 0b11011101,
             size: 8,
         };
-        a.load(&b, (3, 7), (1, 5));
+        let res = a.load(&b, (3, 7), (1, 5));
         assert_eq!(a.data, 0b10110111);
+        assert_eq!(res, Ok(()));
     }
     #[test]
     fn load_4() {
@@ -101,7 +127,8 @@ mod tests {
             data: 0b11011100,
             size: 8,
         };
-        a.load(&b, (1, 2), (0, 1));
+        let res = a.load(&b, (1, 2), (0, 1));
         assert_eq!(a.data, 0b10101010);
+        assert_eq!(res, Ok(()));
     }
 }
