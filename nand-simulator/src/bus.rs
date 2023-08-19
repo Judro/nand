@@ -1,6 +1,6 @@
 use thiserror::Error;
 
-/// can contain 1 to 127 pins: A[0] .. A[0..128]
+/// can contain 1 to 128 pins: A[0] .. A[0..129]
 struct Bus {
     pub data: u128,
     pub size: u8,
@@ -8,14 +8,18 @@ struct Bus {
 
 #[derive(Error, Debug, PartialEq)]
 enum BusError {
-    #[error("A bus should not contain more than 127 pins!")]
+    #[error("A bus should not contain more than 128 pins!")]
     SourceBusMaxExceeded,
-    #[error("A bus should not contain more than 127 pins!")]
+    #[error("A bus should not contain more than 128 pins!")]
     DestinationBusMaxExceeded,
 }
 
 fn mask(slice: (u8, u8)) -> u128 {
-    (u128::pow(2, slice.1.into()) - 1) ^ (u128::pow(2, slice.0.into()) - 1)
+    let mut mask: u128 = 0;
+    for i in slice.0..slice.1 {
+        mask |= 1 << i;
+    }
+    mask
 }
 
 impl Bus {
@@ -25,10 +29,10 @@ impl Bus {
         source: (u8, u8),
         dest: (u8, u8),
     ) -> Result<(), BusError> {
-        if source.0 > 127 || source.1 > 127 {
+        if source.0 > 128 || source.1 > 128 {
             return Err(BusError::SourceBusMaxExceeded);
         }
-        if dest.0 > 127 || dest.1 > 127 {
+        if dest.0 > 128 || dest.1 > 128 {
             return Err(BusError::DestinationBusMaxExceeded);
         }
         let mut tmp = source_bus.data;
@@ -55,8 +59,8 @@ mod tests {
         assert_eq!(0b0011, mask((0, 2)));
         assert_eq!(0b0001, mask((0, 1)));
         assert_eq!(0b0000, mask((0, 0)));
-        // A Bus can only contain 127 Pins
-        assert_eq!(u128::pow(2, 127) - 1, mask((0, 127)));
+        // A Bus can only contain 128 Pins
+        assert_eq!(u128::MAX, mask((0, 128)));
     }
 
     #[test]
