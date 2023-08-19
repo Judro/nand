@@ -8,3 +8,4 @@ edition = "2021"
 [dependencies]
 petgraph = "0.6.3"
 hdl-parser = {path = "../hdl-parser"}
+thiserror = "1.0.47"
