@@ -1,13 +1,14 @@
 use thiserror::Error;
 
 /// can contain 1 to 128 pins: A[0] .. A[0..129]
-struct Bus {
+#[derive(Copy, Clone, PartialEq, Debug)]
+pub struct Bus {
     pub data: u128,
     pub size: u8,
 }
 
 #[derive(Error, Debug, PartialEq)]
-enum BusError {
+pub enum BusError {
     #[error("A bus should not contain more than 128 pins!")]
     SourceBusMaxExceeded,
     #[error("A bus should not contain more than 128 pins!")]
@@ -46,6 +47,13 @@ impl Bus {
         }
         self.data = self.data ^ (self.data & mask(dest)) | tmp;
         Ok(())
+    }
+
+    pub fn pin(&self, pin: u8) -> Bus {
+        Bus {
+            data: self.data << (127 - pin) >> 127,
+            size: 1,
+        }
     }
 }
 
@@ -161,5 +169,25 @@ mod tests {
         };
         let res = a.load(&b, (0, 129), (1, 130));
         assert_eq!(res, Err(BusError::DestinationBusMaxExceeded));
+    }
+
+    #[test]
+    fn pin_0() {
+        let a = Bus {
+            data: 0b00100000,
+            size: 8,
+        };
+        let b = a.pin(5);
+        assert_eq!(b, Bus { data: 1, size: 1 });
+    }
+
+    #[test]
+    fn pin_1() {
+        let a = Bus {
+            data: u128::MAX - u128::pow(2, 127),
+            size: 128,
+        };
+        let b = a.pin(127);
+        assert_eq!(b, Bus { data: 0, size: 1 });
     }
 }
