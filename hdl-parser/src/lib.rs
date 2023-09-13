@@ -8,7 +8,7 @@ use nom::{
     IResult,
 };
 use nom_locate::{locate, Located};
-use nom_supreme::error::ErrorTree;
+use nom_supreme::{error::ErrorTree, final_parser::final_parser};
 
 pub type SResult<I, O> = IResult<I, O, ErrorTree<I>>;
 
@@ -70,7 +70,11 @@ pub struct Part<'s> {
     connections: ConnectionList<'s>,
 }
 
-pub fn chip(input: &str) -> SResult<&str, Chip<'_>> {
+pub fn parse_hdl(input: &str) -> Result<Chip, ErrorTree<&str>> {
+    final_parser(chip)(input)
+}
+
+fn chip(input: &str) -> SResult<&str, Chip<'_>> {
     map(pair(chip_head, chip_body), |(h, b)| Chip {
         name: h,
         in_decl: b.0,
