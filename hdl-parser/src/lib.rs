@@ -19,6 +19,7 @@ pub type LLhsConnector<'s> = Located<LhsConnector<'s>, &'s str>;
 
 pub type LUnsigned<'s> = Located<u32, &'s str>;
 
+#[derive(Debug)]
 pub struct Chip<'s> {
     pub name: LChipName<'s>,
     pub in_decl: Vec<LPinName<'s>>,
