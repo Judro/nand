@@ -69,12 +69,6 @@ pub struct ConnectionList<'s>(Vec<Connection<'s>>);
 #[derive(Debug, PartialEq)]
 pub struct ChipName<'s>(&'s str);
 
-impl CharsLen for ChipName<'_> {
-    fn chars_len(&self) -> usize {
-        self.0.chars_len()
-    }
-}
-
 #[derive(Debug, PartialEq)]
 pub struct Part<'s> {
     name: LChipName<'s>,
@@ -292,7 +286,7 @@ mod tests {
         let (rem, res) = chip_head(Input::new("\tCHIP ALU_01!")).unwrap();
         assert_eq!(rem.into_fragment(), "!");
         assert_eq!(res, ChipName("ALU_01"));
-        assert_eq!(res.span(), (6, 11))
+        assert_eq!(res.span(), (6, 12))
     }
     #[test]
     fn chip_head_1() {

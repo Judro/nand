@@ -4,22 +4,13 @@ use nom::{error::ParseError, IResult, Parser};
 use nom_locate::{position, LocatedSpan};
 pub type Input<'s> = LocatedSpan<&'s str>;
 
-pub struct Located<'s, T>(LocatedSpan<&'s str>, T);
+pub struct Located<'s, T>(LocatedSpan<&'s str>, T, LocatedSpan<&'s str>);
 impl<'s, T> Located<'s, T> {
     pub fn get(&self) -> &T {
         &self.1
     }
-    pub fn offset(&self) -> usize {
-        self.0.location_offset()
-    }
-}
-
-impl<'s, T: CharsLen> Located<'s, T> {
     pub fn span(&self) -> (usize, usize) {
-        (
-            self.offset(),
-            self.offset() + self.get().chars_len().saturating_sub(1),
-        )
+        (self.0.location_offset(), self.2.location_offset())
     }
 }
 
@@ -51,15 +42,6 @@ impl<'s, T: Debug> fmt::Debug for Located<'s, T> {
         f.debug_tuple("Located").field(&self.1).finish()
     }
 }
-pub trait CharsLen {
-    fn chars_len(&self) -> usize;
-}
-
-impl CharsLen for &str {
-    fn chars_len(&self) -> usize {
-        self.len()
-    }
-}
 
 pub fn locate<'s, O, E: ParseError<Input<'s>>, F>(
     mut f: F,
@@ -69,10 +51,14 @@ where
     E: ParseError<Input<'s>>,
 {
     move |i: Input<'s>| {
-        let (i, pos) = position(i)?;
+        let (i, pre) = position(i)?;
+
         match f.parse(i) {
             Err(e) => Err(e),
-            Ok((i, o)) => Ok((i, Located(pos, o))),
+            Ok((i, o)) => {
+                let (i, post) = position(i)?;
+                Ok((i, Located(pre, o, post)))
+            }
         }
     }
 }
@@ -105,14 +91,14 @@ mod tests {
         let (_res, l_str) = test_parser(Input::new("(hello) ")).unwrap();
 
         assert_eq!(*l_str.get(), "hello");
-        assert_eq!(l_str.span(), (1, 5));
+        assert_eq!(l_str.span(), (1, 6));
     }
     #[test]
     fn span_2() {
         let (_res, l_str) = test_parser(Input::new("(h) ")).unwrap();
 
         assert_eq!(*l_str.get(), "h");
-        assert_eq!(l_str.span(), (1, 1));
+        assert_eq!(l_str.span(), (1, 2));
     }
 
     #[test]
