@@ -1,3 +1,5 @@
+mod error;
+use error::HdlError;
 use nom::{
     branch::alt,
     bytes::complete::{tag, take_while1},
@@ -8,6 +10,9 @@ use nom::{
     IResult,
 };
 use nom_locate::{locate, Located};
+use nom_supreme::{error::{ErrorTree, GenericErrorTree}, final_parser::final_parser};
+
+pub type SResult<I, O> = IResult<I, O, ErrorTree<I>>;
 
 pub type LChipName<'s> = Located<ChipName<'s>, &'s str>;
 
@@ -19,6 +24,7 @@ pub type LLhsConnector<'s> = Located<LhsConnector<'s>, &'s str>;
 
 pub type LUnsigned<'s> = Located<u32, &'s str>;
 
+#[derive(Debug)]
 pub struct Chip<'s> {
     pub name: LChipName<'s>,
     pub in_decl: Vec<LPinName<'s>>,
@@ -66,7 +72,24 @@ pub struct Part<'s> {
     connections: ConnectionList<'s>,
 }
 
-pub fn chip(input: &str) -> IResult<&str, Chip<'_>> {
+pub fn parse_hdl2(input: &str) ->Result<Chip,HdlError> {
+    match parse_hdl(input) {
+        Ok(c) => Ok(c),
+        Err(GenericErrorTree::Base { location, kind })=>{
+            panic!("can not convert location: {location}")
+        }Err(GenericErrorTree::Stack { base, contexts })=>{
+            todo!()
+        }Err(GenericErrorTree::Alt(alts))=>{
+            todo!()
+        }
+    }
+}
+
+pub fn parse_hdl(input: &str) -> Result<Chip, ErrorTree<&str>> {
+    final_parser(chip)(input)
+}
+
+fn chip(input: &str) -> SResult<&str, Chip<'_>> {
     map(pair(chip_head, chip_body), |(h, b)| Chip {
         name: h,
         in_decl: b.0,
@@ -75,25 +98,25 @@ pub fn chip(input: &str) -> IResult<&str, Chip<'_>> {
     })(input)
 }
 
-fn identifier(input: &str) -> IResult<&str, &str> {
+fn identifier(input: &str) -> SResult<&str, &str> {
     preceded(
         not(digit1),
         take_while1(|c: char| c.is_alphanumeric() || c == '_'),
     )(input)
 }
 
-fn unsigned(input: &str) -> IResult<&str, u32> {
+fn unsigned(input: &str) -> SResult<&str, u32> {
     map_res(digit1, |u: &str| u.parse::<u32>())(input)
 }
 
-pub fn chip_head(input: &str) -> IResult<&str, LChipName> {
+pub fn chip_head(input: &str) -> SResult<&str, LChipName> {
     preceded(
         delimited(skip_white, tag("CHIP"), skip_white),
         locate(chip_name),
     )(input)
 }
 
-pub fn chip_body(input: &str) -> IResult<&str, (Vec<LPinName>, Vec<LPinName>, Vec<Part>)> {
+pub fn chip_body(input: &str) -> SResult<&str, (Vec<LPinName>, Vec<LPinName>, Vec<Part>)> {
     map(
         delimited(
             preceded(skip_white, char('{')),
@@ -107,37 +130,37 @@ pub fn chip_body(input: &str) -> IResult<&str, (Vec<LPinName>, Vec<LPinName>, Ve
     )(input)
 }
 
-fn skip_white(input: &str) -> IResult<&str, &str> {
+fn skip_white(input: &str) -> SResult<&str, &str> {
     multispace0(input)
 }
 
-fn pin_list(input: &str) -> IResult<&str, Vec<LPinName>> {
+fn pin_list(input: &str) -> SResult<&str, Vec<LPinName>> {
     separated_list0(
         preceded(skip_white, char(',')),
         preceded(skip_white, locate(pin_name)),
     )(input)
 }
 
-fn pin_name(input: &str) -> IResult<&str, PinName> {
+fn pin_name(input: &str) -> SResult<&str, PinName> {
     map(identifier, |s| PinName(s))(input)
 }
 
-fn chip_name(input: &str) -> IResult<&str, ChipName> {
+fn chip_name(input: &str) -> SResult<&str, ChipName> {
     map(identifier, |s| ChipName(s))(input)
 }
 
-fn pin_decl<P: Pin>(input: &str) -> IResult<&str, Vec<LPinName>> {
+fn pin_decl<P: Pin>(input: &str) -> SResult<&str, Vec<LPinName>> {
     preceded(
         skip_white,
         delimited(tag(P::conn()), pin_list, preceded(skip_white, char(';'))),
     )(input)
 }
 
-fn bool(input: &str) -> IResult<&str, bool> {
+fn bool(input: &str) -> SResult<&str, bool> {
     alt((map(tag("true"), |_| true), map(tag("false"), |_| false)))(input)
 }
 
-fn bus_slice(input: &str) -> IResult<&str, BusSlice> {
+fn bus_slice(input: &str) -> SResult<&str, BusSlice> {
     map(
         pair(
             locate(pin_name),
@@ -158,7 +181,7 @@ fn bus_slice(input: &str) -> IResult<&str, BusSlice> {
     )(input)
 }
 
-fn rhs_connector(input: &str) -> IResult<&str, LRhsConnector> {
+fn rhs_connector(input: &str) -> SResult<&str, LRhsConnector> {
     locate(alt((
         map(bool, RhsConnector::Potential),
         map(bus_slice, RhsConnector::Slice),
@@ -166,14 +189,14 @@ fn rhs_connector(input: &str) -> IResult<&str, LRhsConnector> {
     )))(input)
 }
 
-fn lhs_connector(input: &str) -> IResult<&str, LLhsConnector> {
+fn lhs_connector(input: &str) -> SResult<&str, LLhsConnector> {
     locate(alt((
         map(bus_slice, LhsConnector::Slice),
         map(identifier, LhsConnector::Bus),
     )))(input)
 }
 
-fn connection(input: &str) -> IResult<&str, Connection> {
+fn connection(input: &str) -> SResult<&str, Connection> {
     map(
         separated_pair(
             preceded(skip_white, lhs_connector),
@@ -184,14 +207,14 @@ fn connection(input: &str) -> IResult<&str, Connection> {
     )(input)
 }
 
-fn connection_list(input: &str) -> IResult<&str, ConnectionList> {
+fn connection_list(input: &str) -> SResult<&str, ConnectionList> {
     map(
         separated_list0(preceded(skip_white, char(',')), connection),
         |c| ConnectionList(c),
     )(input)
 }
 
-fn part(input: &str) -> IResult<&str, Part> {
+fn part(input: &str) -> SResult<&str, Part> {
     map(
         terminated(
             pair(
