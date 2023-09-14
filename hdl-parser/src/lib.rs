@@ -1,3 +1,5 @@
+mod error;
+use error::HdlError;
 use nom::{
     branch::alt,
     bytes::complete::{tag, take_while1},
@@ -8,7 +10,7 @@ use nom::{
     IResult,
 };
 use nom_locate::{locate, Located};
-use nom_supreme::{error::ErrorTree, final_parser::final_parser};
+use nom_supreme::{error::{ErrorTree, GenericErrorTree}, final_parser::final_parser};
 
 pub type SResult<I, O> = IResult<I, O, ErrorTree<I>>;
 
@@ -68,6 +70,19 @@ pub struct ChipName<'s>(&'s str);
 pub struct Part<'s> {
     name: LChipName<'s>,
     connections: ConnectionList<'s>,
+}
+
+pub fn parse_hdl2(input: &str) ->Result<Chip,HdlError> {
+    match parse_hdl(input) {
+        Ok(c) => Ok(c),
+        Err(GenericErrorTree::Base { location, kind })=>{
+            panic!("can not convert location: {location}")
+        }Err(GenericErrorTree::Stack { base, contexts })=>{
+            todo!()
+        }Err(GenericErrorTree::Alt(alts))=>{
+            todo!()
+        }
+    }
 }
 
 pub fn parse_hdl(input: &str) -> Result<Chip, ErrorTree<&str>> {

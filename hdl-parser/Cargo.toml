@@ -10,3 +10,4 @@ miette = "5.10.0"
 nom = "7.1.3"
 nom-locate = {path = "../nom-locate"}
 nom-supreme = "0.8.0"
+thiserror = "1.0.48"
